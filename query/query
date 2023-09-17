@@ -1,0 +1,102 @@
+Question:
+
+1. Download DATABASE classicmodels di website
+https://www.mysqltutorial.org/mysql-sample-database.aspx
+
+Buat QUERY untuk menampilkan customerNumber siapa saja yang memesan
+productLine Classic Cars dimana total hitung atau COUNT productionline
+tersebut lebih besar dari 23.
+
+Answer
+
+SELECT c.customerNumber
+FROM customers c
+JOIN orders o ON c.customerNumber = o.customerNumber
+JOIN orderdetails od ON o.orderNumber = od.orderNumber
+JOIN products p ON od.productCode = p.productCode
+WHERE p.productLine = 'Classic Cars'
+GROUP BY c.customerNumber
+HAVING COUNT(p.productLine) > 23;
+
+
+Question :
+
+2. Buat stored procedure pada mysql untuk mengekstrak isi dari ksm_kurs_pajak menjadi 1 table kurs pajak dimana table ini akan terdiri dari kolom sebagai berikut dan contoh isinya seperti ini
+
+"id_ksm_kurs_pajak"	"kurs_rate"	"tgl"	"curr_id"
+
+Answer :
+
+DELIMITER //
+CREATE PROCEDURE create_kurs_pajak_table()
+BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Error: An error occurred during table creation.';
+    END;
+
+    START TRANSACTION;
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'kurs_pajak') THEN
+        ROLLBACK;
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Error: Table kurs_pajak already exists. Rolling back.';
+    ELSE
+        CREATE TABLE kurs_pajak (
+            id_ksm_kurs_pajak INT,
+            kurs_rate DECIMAL(10, 4),
+            tgl DATE,
+            curr_id INT
+        );
+
+        INSERT INTO kurs_pajak (id_ksm_kurs_pajak, kurs_rate, tgl, curr_id)
+        SELECT id_ksm_kurs_pajak, kurs_rate, tgl, curr_id
+        FROM ksm_kurs_pajak;
+
+        COMMIT;
+    END IF;
+END  //
+DELIMITER
+
+
+Quetion:
+3. Buatlah function pada mysql untuk mencari tanggal terkecil dari string yang ter-concatenated seperti berikut 
+'2016-04-22, 2016-07-20, 2015-03-29, 2023-07-03'
+apabila fungsi tersebut dipanggil maka output yang dihasilkan adalah 2015-03-29
+
+Answer:
+
+DELIMITER //
+CREATE FUNCTION FindMinDate(concatenatedDates TEXT)
+RETURNS DATE
+BEGIN
+    DECLARE minDate DATE;
+    DECLARE currentDate DATE;
+    DECLARE dateList TEXT;
+    DECLARE done INT DEFAULT 0;
+    DECLARE idx INT DEFAULT 1;
+
+    -- Inisialisasi tanggal terkecil dengan tanggal maksimum
+    SET minDate = '9999-12-31';
+
+    -- Loop untuk memisahkan string dan mencari tanggal terkecil
+    WHILE NOT done DO
+        SET currentDate = SUBSTRING_INDEX(SUBSTRING_INDEX(concatenatedDates, ', ', idx), ', ', -1);
+        SET idx = idx + 1;
+
+        -- Jika currentDate adalah NULL, berarti sudah sampai di akhir string
+        IF currentDate IS NULL THEN
+            SET done = 1;
+        ELSE
+            -- Jika currentDate lebih kecil dari minDate, update minDate
+            IF currentDate < minDate THEN
+                SET minDate = currentDate;
+            END IF;
+        END IF;
+    END WHILE;
+
+    RETURN minDate;
+END //
+DELIMITER ;
